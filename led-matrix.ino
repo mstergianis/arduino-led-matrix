@@ -93,6 +93,18 @@ byte DISP[] = {B10010001,
                B10010001
               };
 
+byte initialBoard[8] = {
+  B00000000,
+  B00000000,
+  B00011000,
+  B00011000,
+  B00000000,
+  B00000000,
+  B00000000,
+  B00000000
+};
+byte newBoard[8];
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -108,28 +120,44 @@ void setup() {
   pinMode(A1, OUTPUT);
   pinMode(A2, OUTPUT);
   pinMode(A3, OUTPUT);
+
+  for (int i = 0; i < 8; i++) {
+    newBoard[i] = initialBoard[i];
+  }
 }
 
 int time_count = 0;
 
 void loop() {
+  byte staticBoard[8];
+  for (int i = 0; i < 8; i++) {
+    staticBoard[i] = newBoard[i];
+  }
+  
+  for (int i = 0; i < 2000; i++) {
+    drawScreen(staticBoard);
+  }
+
+  evolve(staticBoard, newBoard);
+
+
   // put your main code here, to run repeatedly:
   // time_count++;
 
-  parser("ZOE", 3);
-
-  // space
-  delay(1000);
-
-  parser("Peter", 5);
-
-  // space
-  delay(1000);
-
-  parser("Mike", 4);
-
-  // space
-  delay(1000);
+  //  parser("ZOE", 3);
+  //
+  //  // space
+  //  delay(1000);
+  //
+  //  parser("Peter", 5);
+  //
+  //  // space
+  //  delay(1000);
+  //
+  //  parser("Mike", 4);
+  //
+  //  // space
+  //  delay(1000);
 }
 
 void parser(char value[], int length) {
@@ -153,7 +181,7 @@ void  drawScreen(byte buffer2[]) {
     digitalWrite(rows[i], HIGH);    //initiate whole row
     for (byte a = 0; a < 8; a++) {
       // if You set (~buffer2[i] >> a) then You will have positive
-      digitalWrite(col[a], (buffer2[i] >> a) & 0x01); // initiate whole column
+      digitalWrite(col[a], (~buffer2[i] >> a) & 0x01); // initiate whole column
 
       // delayMicroseconds(100);       // uncoment deley for diferent speed of display
       // delayMicroseconds(1000);
@@ -187,5 +215,45 @@ void lookup(char c, byte disp[]) {
   int index = (int)capitalChar - 65;
   for (int i = 0; i < 8; i++) {
     disp[i] = LETTERS[index][i];
+  }
+}
+
+// 1. Any live cell with two or three neighbors survives.
+// 2. Any dead cell with three live neighbors becomes a live cell.
+// 3. All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+
+void evolve(byte board[8], byte newBoard[8]) {
+  for (byte row = 0; row < 8; row++) {
+    for (byte col = 0; col < 8; col++) {
+      byte cell = (board[row] >> col) & 0x01;
+      int count = 0;
+      for (char sibRow = -1; sibRow < 2; sibRow++) {
+        for (char sibCol = -1; sibCol < 2; sibCol++) {
+          if (sibRow != 0 && sibCol != 0) {
+            char siblingRow = (row + sibRow) % 8;
+            char siblingCol = (col + sibCol) % 8;
+            byte siblingCell = (board[siblingRow] >> siblingCol) & 0x01;
+            if (siblingCell == 1) {
+              count++;
+            }
+          }
+        }
+      }
+
+      if (cell == 1) {
+        if (count < 2 || count > 3) {
+          newBoard[row] = newBoard[row] & (~(0x01 << col));
+        }
+        if (count == 2 || count == 3) {
+          newBoard[row] = newBoard[row] | (0x01 << col);
+        }
+      }
+
+      if (cell == 0) {
+        if (count == 3) {
+          newBoard[row] = newBoard[row] | (0x01 << col);
+        }
+      }
+    }
   }
 }
